@@ -22,6 +22,8 @@ class City(object):
         self.all_activities = []
         self.grid = self.initialise_grid()
         self.add_activity((n//2,n//2))
+        self.add_activity((0,0))
+        # self.add_activity((n//2+1,n//2+1))    
         self.history = [self.grid]
 
     def initialise_grid(self):
@@ -73,18 +75,23 @@ class City(object):
     # get the candidate positions in the field of an initiate state
     def get_grow_candidates(self, act):
         grow_candidates = [candidate for candidate in act.field_neighbors if isinstance(self.grid[candidate],Empty)]
+        # print(grow_candidates)
         grow_probs = [grow_prob(np.array(candidate_pos), np.array(act.pos), self.dist_decay) for candidate_pos in grow_candidates]
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
     # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
     def candidate_check(self, candidate):
+        # print(candidate)
         candidate_neighborhood = self.grid[candidate].neighborhood
+        # print(candidate_neighborhood)
         activity = 0
         for pos in candidate_neighborhood:
             if isinstance(self.grid[pos], Activity):
+                # print(pos)
                 activity += 1
+        # print(activity)
         return self.activity_threshold <= activity/((2*self.n_radius+1)**2-1)
-        
+
     # function to implement;
     def determine_activity(self):
         pass
@@ -92,11 +99,14 @@ class City(object):
     # initiate possible new cells
     def initiate_new(self):
         init_sites = [act for act in self.all_activities if act.type == 'init']
+        new_activities = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
-            new_activities = [candidate for candidate in grow_candidates if self.candidate_check(candidate)]
-            self.determine_activity()
-            [self.add_activity(act_pos) for act_pos in new_activities]
+            new_activities += [candidate for candidate in grow_candidates if self.candidate_check(candidate)]
+            # print(new_activities)
+            # print('--------------------------------')
+            # self.determine_activity()
+        [self.add_activity(act_pos) for act_pos in set(list(new_activities))]
 
         # 1 determine if cell is canididate for growing
         # 2 check neighborhood of cell
@@ -121,8 +131,8 @@ class Empty(object):
     def get_neighbors(self, radius):
         neighbors = []
         row, col = self.pos
-        for i in range(row-radius, row+radius+1):
-            for j in range(col-radius, col+radius+1):
+        for i in range(col-radius, col+radius+1):
+            for j in range(row-radius, row+radius+1):
                 if not (0 <= i < self.n and 0 <= j < self.n and (i,j) != self.pos):
                     continue
                 neighbors += [(i,j)]
@@ -146,7 +156,8 @@ class Activity(object):
         self.pd = 1 - self.pm - self.pi
         
 # get the probability an activity is starting at candidate position
-# this give huge speed up...
+# function is outside the class to use jit function
+# gives huge model speedup
 @jit(nopython=True)
 def grow_prob(candidate_pos, act_pos, dist_decay):
     return np.exp(-dist_decay*euclidean_dist(act_pos, candidate_pos))
