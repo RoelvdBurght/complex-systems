@@ -12,7 +12,8 @@ from numba import int32, float32, types, typed, jit    # import the types
 
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
-    def __init__(self, n=10, n_radius=1, field_radius=2, dist_decay=0.8, activity_threshold=1/8):
+    def __init__(self, n=10, n_radius=1, field_radius=2, dist_decay=0.9, activity_threshold=1/8):
+        self.transition_m = np.array([[0.8,0.05,0.15], []])
         self.n = n
         self.t = 0
         self.n_radius = n_radius
@@ -20,11 +21,12 @@ class City(object):
         self.dist_decay = dist_decay
         self.activity_threshold = activity_threshold
         self.all_activities = []
+        self.activity = []
         self.grid = self.initialise_grid()
-        self.add_activity((n//2,n//2))
-        # self.add_activity((0,0))
+        self.add_activity((n-1,n-1))
+        self.add_activity((0,0))
         # self.add_activity((n//2+1,n//2+1))    
-        self.history = [self.grid]
+        # self.history = [self.grid]
 
     def initialise_grid(self):
         grid = np.empty((self.n, self.n), dtype=object)
@@ -35,7 +37,6 @@ class City(object):
                 cell = Empty((i,j), neighbors, field_neighbors, self.n)
                 grid[(i,j)] = cell
         return grid
-        # return np.array([[Empty((i,j), self.n_radius, self.field_radius, self.n) for i in range(self.n)] for j in range(self.n)])
 
     # adds a activity at specified position
     def add_activity(self, pos):
@@ -47,7 +48,7 @@ class City(object):
 
     # deletes activity at specified position
     def delete_activity(self, act):
-        self.grid[act.pos] = Empty(act.pos, act.neighborhood, act.field_neighbors, self.n)
+        self.grid[act.pos] = Empty(act.pos, act.neighborhood, act.field_neighbors, self.n, city.t)
         self.all_activities.remove(act)
         del act
 
@@ -75,10 +76,6 @@ class City(object):
     # deletes all activities that are declining
     def delete_declining(self):
         [self.delete_activity(act) for act in self.all_activities if act.type == 'decline']
-
-    # get the probability an activity is starting at candidate position
-#     def grow_prob(self, candidate_pos, act_pos):
-#         return np.exp(-self.dist_decay*np.linalg.norm(act_pos - candidate_pos))
     
     # get the candidate positions in the field of an initiate state
     def get_grow_candidates(self, act):
@@ -87,15 +84,12 @@ class City(object):
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
     # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
-    def candidate_check(self, candidate):
+    def activity_check(self, candidate):
         candidate_neighborhood = self.grid[candidate].neighborhood
         activity = 0
-        # print(candidate_neighborhood)
-        try:
-            for pos in candidate_neighborhood:
-                if isinstance(self.grid[pos], Activity):
-                    activity += 1
-        except: print(candidate_neighborhood)
+        for pos in candidate_neighborhood:
+            if isinstance(self.grid[pos], Activity):
+                activity += 1
         return self.activity_threshold <= activity/((2*self.n_radius+1)**2-1)
 
     # function to implement;
@@ -108,14 +102,9 @@ class City(object):
         new_activities = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
-            new_activities += [candidate for candidate in grow_candidates if self.candidate_check(candidate)]
-            # print(new_activities)
-            # print('--------------------------------')
-            # self.determine_activity()
+            grow_candidates += [candidate for candidate in grow_candidates if self.activity_check(candidate)]
+            new_activities += [candidate for candidate in grow_candidates if self.]
         [self.add_activity(act_pos) for act_pos in set(list(new_activities))]
-
-        # 1 determine if cell is canididate for growing
-        # 2 check neighborhood of cell
 
  # get the neigbors cell given neigborhood
     def get_neighbors(self, pos, radius):
@@ -136,20 +125,21 @@ class City(object):
         self.update_types()
         self.initiate_new()
         self.delete_declining()
-        self.history += [copy.copy(self.grid)]
+        # self.history += [copy.copy(self.grid)]
 
 class Empty(object):
-    def __init__(self, pos, neighborhood, field_neighbors, n):
+    def __init__(self, pos, neighborhood, field_neighbors, n, t=None):
         self.value = 0
         self.pos = pos
         self.neighborhood = neighborhood
         self.field_neighbors = field_neighbors
         self.n = n
+        self.init_t = t
 
 class Activity(object):
     def __init__(self, pos, empty_cell, city):
         self.value = 1
-        self.decay = 1/30
+        self.decay = 1/10
         self.pos = pos
         self.city = city
         self.init_t = city.t
@@ -163,6 +153,15 @@ class Activity(object):
         self.pm = (1-self.pi)*np.exp(-self.decay*(self.city.t-self.init_t))
         self.pd = 1 - self.pm - self.pi
         
+
+class Housing(Activity):
+
+
+class Industry(Activity):
+
+class Shopping(Activity):
+
+
 # get the probability an activity is starting at candidate position
 # function is outside the class to use jit function
 # gives huge model speedup
@@ -178,10 +177,3 @@ def euclidean_dist(pos1, pos2):
 if __name__ ==  "__main__":
 # #     t = time()
     C = City(n=10)
-    # for _ in range(10):
-        # C.step()
-    print(len((C.grid[5,5].field_neighbors)))
-    print(len((C.grid[5,5].neighborhood)))
-
-
-    # print(time()-t)
