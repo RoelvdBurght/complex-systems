@@ -11,15 +11,15 @@ class GuiCell(object):
         self.graph = graph
         self.top_left = top_left
         self.bottom_right = (top_left[0] + size, top_left[1] + size)
-        self.color = 'Green'
+        self.color_dict = {1:'Green', 2:'Red', 3:'Grey'}
         self.model_cell = model_cell
         self.black = False
         self.colored = False
 
     def draw(self):
         # Draws the rectangles on the screen in the right color. Extra checks are present as a speed up 
-        if type(self.model_cell) == Activity and self.colored == False:
-            self.graph.DrawRectangle(self.top_left, self.bottom_right, fill_color=self.color)
+        if issubclass(type(self.model_cell), Activity) and self.colored == False:
+            self.graph.DrawRectangle(self.top_left, self.bottom_right, fill_color=self.color_dict[self.model_cell.value])
             self.black = False
             self.colored = True
 
@@ -39,7 +39,7 @@ class GUI(object):
         sg.theme('DarkAmber')   # Add a touch of color 
         layout = [
             [sg.Graph(canvas_size=(self.width, self.height), graph_bottom_left=(0,0), graph_top_right=(self.width, self.height), key='graph')],
-            [sg.T('Actions'), sg.Button('Start sim'), sg.Button('Single step'), sg.Button('Initialise cells')]      
+            [sg.T('Actions'), sg.Button('Start sim'), sg.Input('# iterations', key='num_iter', size=(10, 1), focus=True), sg.Button('Single step'), sg.Button('Initialise cells')]      
             ]
         window = sg.Window('Graph test', layout)
         self.graph = window['graph']
@@ -71,7 +71,10 @@ class GUI(object):
                 self.update()
 
             if event == 'Start sim':
-                pass
+                for i in range(int(values['num_iter'])):
+                    self.update()
+                    window.Refresh()
+                # pass
 
         window.close()
 
