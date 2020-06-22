@@ -131,7 +131,8 @@ class Activity():
         self.pi = np.exp(-self.decay*(self.city.t-self.init_t))
         self.pm = (1-self.pi)*np.exp(-self.decay*(self.city.t-self.init_t))
         self.pd = 1 - self.pm - self.pi
-        
+
+
 # get the probability an activity is starting at candidate position
 # this give huge speed up...
 @jit(nopython=True)
