@@ -168,10 +168,11 @@ class City(object):
         return new_nodes
 
     def initiate_streets(self):
-        # new_street_nodes = []
+        new_street_nodes = []
         for node in self.street_nodes:
             new_street_nodes = self.get_grow_candidates(node)
-            self.street_check(new_street_nodes)
+            new_street_nodes += self.street_check(new_street_nodes)
+        
             # do street checks etc..
         # print(new_street_nodes)
             
