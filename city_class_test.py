@@ -40,7 +40,7 @@ class City(object):
         # self.add_activity((0,0))
         # self.add_activity((n//2+1,n//2+1))    
         # self.history = [self.grid]
-
+        self.street_node_treshold = 0.25 #----------vind hier goede waarde voor------
 
     def initialise_grid(self):
         grid = np.empty((self.n, self.n), dtype=object)
@@ -122,7 +122,23 @@ class City(object):
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
     # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
-    def activity_check(self, candidate):
+    def activity_check(self, candidate, type):
+        if type == 'housing':
+            candidate_field = self.grid[candidate].field
+            street_node_density = 0
+            for pos in candidate_field:
+                for neighbor_pos in self.grid[pos].neighborhood:
+                    if isinstance(self.grid[neighbor_pos], StreetNode):
+                        street_node_density += 1
+
+            return street_node_density < self.street_node_treshold
+
+        if type == 'industry':
+            pass
+
+        if type == 'store':
+            pass
+
         candidate_neighborhood = self.grid[candidate].neighborhood
         activity = 0
         for pos in candidate_neighborhood:
@@ -184,7 +200,7 @@ class City(object):
         new_type = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
-            grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
+            grow_candidates = [candidate for candidate in grow_candidates if self.grid[candidate[0]].check_activity()]
             new_variable = self.determine_activity(grow_candidates)
 
             for var in new_variable:
@@ -193,7 +209,7 @@ class City(object):
                     new_type.append(var[1])
         [self.add_activity(new_positions[i], new_type[i]) for i in range(len(new_positions))]
 
-# get the neigbors cell given neigborhood
+    # get the neigbors cell given neigborhood
     def get_neighbors(self, pos, radius):
         neighbors = []
         row, col = pos
@@ -248,6 +264,17 @@ class Activity(object):
 class Housing(Activity):
     def __init__(self, pos, empty_cell, city):
         super().__init__(pos, empty_cell, city, value=1)
+        self.street_node_threshold = 0.25 #----------- betere waarde voor vinden
+
+    def check_activity(self, candidate):
+        candidate_field = self.city.grid[candidate].field
+        street_node_density = 0
+        for pos in candidate_field:
+            for neighbor_pos in self.city.grid[pos].neighborhood:
+                if isinstance(self.city.grid[neighbor_pos], StreetNode):
+                    street_node_density += 1
+
+        return street_node_density < self.street_node_threshold
 
 class Industry(Activity):
     def __init__(self, pos, empty_cell, city):
