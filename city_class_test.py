@@ -12,20 +12,24 @@ from numba import int32, float32, types, typed, jit    # import the types
 
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
-    def __init__(self, n=10, n_radius=1, field_radius=2, dist_decay=0.9, activity_threshold=1/8, \
+    def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, activity_threshold=1/8, \
                                                                     street_thresholds={'housing':0.1, 'industry':0.6, 'stores':0.7}):
         self.inMatrix = np.array([[0.95, 0.025, 0.025], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
         self.n = n
         self.t = 0
         self.n_radius = n_radius
         self.field_radius = field_radius
+        self.street_field_radius = street_field_radius
+
+        self.init_decay = init_decay
+        self.mature_decay = mature_decay
         self.dist_decay = dist_decay
 
         self.street_thresholds = street_thresholds
         self.activity_threshold = activity_threshold
         self.all_activities = []
 
-
+        self.mature_decay
         self.types = [Housing, Industry, Stores]        
         self.house_activity = 0
         self.industry_activity = 0
@@ -53,21 +57,25 @@ class City(object):
         return grid
 
     def init_streets(self):
-        init_pos = tuple(np.random.randint(0, self.n, 2))
+        init_pos = (self.n//2-1, self.n//2-1)
+        empty_cell = self.grid[init_pos]
+        self.grid[init_pos] = StreetNode(init_pos, empty_cell, self.get_neighbors((init_pos[0],init_pos[1]), self.street_field_radius), self)
+        self.street_nodes += [self.grid[init_pos]]
+        del empty_cell
         second_pos = (init_pos[0]+5, init_pos[1])
+        third_pos = (init_pos[0], init_pos[1]+5)
+
         self.lay_street(init_pos, second_pos)
+        self.lay_street(init_pos, third_pos)
 
     def lay_street(self, init_pos, second_pos):
-        cell1 = self.grid[init_pos]
-        cell2 = self.grid[second_pos]
-        self.grid[init_pos] = StreetNode(init_pos, cell1, self)
-        self.grid[second_pos] = StreetNode(init_pos, cell2, self)
-        self.street_nodes += [self.grid[init_pos]]
+        empty_cell = self.grid[second_pos]
+        self.grid[second_pos] = StreetNode(second_pos, empty_cell, self.get_neighbors((second_pos[0],second_pos[1]), self.street_field_radius), self)
         self.street_nodes += [self.grid[second_pos]]
         inter_cells = list(bresenham(init_pos[0], init_pos[1], second_pos[0], second_pos[1]))
         for cell in inter_cells[1:-1]:
             self.grid[cell] = StreetRoute(cell, self.grid[cell], self)
-        del cell1, cell2
+        del empty_cell
 
     def init_activity(self):
         for _ in range(4):
@@ -80,7 +88,7 @@ class City(object):
     # adds a activity at specified position
     def add_activity(self, pos, clas):
         empty_cell = self.grid[pos]
-        self.grid[pos] = clas(pos, empty_cell, self)
+        self.grid[pos] = clas(pos, empty_cell, self, self.init_decay, self.mature_decay)
         del empty_cell
         self.all_activities += [self.grid[pos]]
 
@@ -155,7 +163,9 @@ class City(object):
         housing = sum(self.grid[neighbor].value == 1 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
         industry= sum(self.grid[neighbor].value == 2 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
         stores = sum(self.grid[neighbor].value == 3 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
-        if (housing < thresholds['housing'] and industry < thresholds['industry'] and thresholds['stores'] < stores):
+        streets = sum(self.grid[neighbor].value == 4 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
+
+        if (housing < thresholds['housing'] and industry < thresholds['industry'] and stores < thresholds['stores'] and streets == 0):
             return True
         return False
 
@@ -163,19 +173,29 @@ class City(object):
         new_nodes = []
         for node in new_street_nodes:
             new_node_neighborhood = self.grid[node[0]].neighborhood
-            if self.max_density_check(new_node_neighborhood, self.street_thresholds):            
-                new_nodes += node
+            if self.max_density_check(new_node_neighborhood, self.street_thresholds):
+                new_nodes += [node]
         return new_nodes
 
+    def vancant_cells(self, init_pos, second_pos):
+        inter_cells = list(bresenham(init_pos[0], init_pos[1], second_pos[0], second_pos[1]))
+        for cell in inter_cells[1:-1]:
+            if self.grid[cell].value != 0:
+                return False
+        return True
+
     def initiate_streets(self):
-        new_street_nodes = []
+        new_nodes = []
         for node in self.street_nodes:
             new_street_nodes = self.get_grow_candidates(node)
-            new_street_nodes += self.street_check(new_street_nodes)
-        
-            # do street checks etc..
-        # print(new_street_nodes)
-            
+            new_nodes += [self.street_check(new_street_nodes)]
+        for i in range(len(self.street_nodes)):
+            init_node = self.street_nodes[i]
+            for second_node in new_nodes[i]:
+                if self.vancant_cells(init_node.pos, second_node[0]):
+                    self.lay_street(init_node.pos, second_node[0])
+                    break
+
 
     # initiate possible new cells
     def initiate_activity(self):
@@ -228,11 +248,12 @@ class Empty(object):
         # self.init_t = t
 
 class Activity(object):
-    def __init__(self, pos, empty_cell, city, value, decay=1/30):
+    def __init__(self, pos, empty_cell, city, init_decay, mature_decay, value):
         self.pos = pos
         self.city = city
         self.init_t = city.t
-        self.decay = decay
+        self.init_decay = init_decay
+        self.mature_decay = mature_decay
         self.value = value
         self.type = 'new'
         self.neighborhood = empty_cell.neighborhood
@@ -240,49 +261,50 @@ class Activity(object):
         self.calc_probs()
 
     def calc_probs(self):
-        self.pi, self.pm, self.pd = fast_calc_probs(self.decay, self.city.t, self.init_t)
+        self.pi, self.pm, self.pd = fast_calc_probs(self.init_decay, self.mature_decay, self.city.t, self.init_t)
         # self.pi = np.exp(-self.decay*(self.city.t-self.init_t))
         # self.pm = (1-self.pi)*np.exp(-self.decay*(self.city.t-self.init_t))
         # self.pd = 1 - self.pm - self.pi
 
 class Housing(Activity):
-    def __init__(self, pos, empty_cell, city):
-        super().__init__(pos, empty_cell, city, value=1)
+    def __init__(self, pos, empty_cell, city,init_decay, mature_decay):
+        super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=1)
 
 class Industry(Activity):
-    def __init__(self, pos, empty_cell, city):
-        super().__init__(pos, empty_cell, city, value=2)
+    def __init__(self, pos, empty_cell, city,init_decay, mature_decay):
+        super().__init__(pos, empty_cell, city,  init_decay, mature_decay, value=2)
 
 class Stores(Activity):
-    def __init__(self, pos, empty_cell, city):
-        super().__init__(pos, empty_cell, city, value=3)
+    def __init__(self, pos, empty_cell, city, init_decay, mature_decay):
+        super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=3)
 
 class StreetNode(object):
-    def __init__(self, pos, empty_cell, city):
+    def __init__(self, pos, empty_cell, street_field, city):
         # super().__init__(pos, empty_cell, city, value=4, decay=0)
         self.pos = pos
-        self.neigborhood = empty_cell.neighborhood
-        self.field_neighbors = empty_cell.field_neighbors
+        self.neighborhood = empty_cell.neighborhood
+        self.field_neighbors = street_field
         self.value = 4
 
 class StreetRoute(object):
     def __init__(self, pos, empty_cell, city):
         self.pos = pos
         self.city = city
-        self.neigborhood = empty_cell.neighborhood
+        self.neighborhood = empty_cell.neighborhood
         self.field_neighbors = empty_cell.field_neighbors
-        self.value = 4
+        self.value = 5
 
+
+# calculates the probability for a activity to be of some type
 @jit(nopython=True)
-def fast_calc_probs(decay, t, init_t):
-    pi = np.exp(-decay*(t-init_t))
-    pm = (1-pi)*np.exp(-decay*(t-init_t))
+def fast_calc_probs(init_decay, mature_decay, t, init_t):
+    pi = np.exp(-init_decay*(t-init_t))
+    pm = (1-pi)*np.exp(-mature_decay*(t-init_t))
     return pi,pm, 1-pi-pm
 
 
 # get the probability an activity is starting at candidate position
-# function is outside the class to use jit function
-# gives huge model speedup
+# function is outside the class to use faster jit function
 @jit(nopython=True)
 def calc_grow_prob(candidate_pos, act_pos, dist_decay):
     return np.exp(-dist_decay*euclidean_dist(act_pos, candidate_pos))
@@ -304,4 +326,6 @@ def cumsum(l):
 
 if __name__ ==  "__main__":
 # #     t = time()
-    C = City(n=10)
+    np.random.seed(90)
+    city = City(n=50)
+    # city.initiate_streets()
