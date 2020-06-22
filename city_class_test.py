@@ -13,6 +13,8 @@ from numba import int32, float32, types, typed, jit    # import the types
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
     def __init__(self, n=10, n_radius=1, field_radius=2, dist_decay=0.8, activity_threshold=1/8):
+        self.inMatrix = np.array([[0.95, 0.05, 0, 0], [0, 0.95, 0.05, 0], [0.05, 0, 0.95, 0], [0,0,0,1]])
+        # self.inMatrix = np.array([[0.95, 0.05, 0], [0, 0.95, 0.05], [0.05, 0, 0.95]])
         self.n = n
         self.t = 0
         self.n_radius = n_radius
@@ -21,7 +23,8 @@ class City(object):
         self.activity_threshold = activity_threshold
         self.all_activities = []
         self.grid = self.initialise_grid()
-        self.add_activity((n//2,n//2))
+        self.add_activity((n//2,n//2), Housing)
+        self.add_activity((n//3, n//3), Street)
         # self.add_activity((0,0))
         # self.add_activity((n//2+1,n//2+1))    
         self.history = [self.grid]
@@ -38,12 +41,12 @@ class City(object):
         # return np.array([[Empty((i,j), self.n_radius, self.field_radius, self.n) for i in range(self.n)] for j in range(self.n)])
 
     # adds a activity at specified position
-    def add_activity(self, pos):
+    def add_activity(self, pos, clas):
         empty_cell = self.grid[pos]
-        self.grid[pos] = Activity(pos, empty_cell, self)
+        self.grid[pos] = clas(pos, empty_cell, self)
         del empty_cell
         self.all_activities += [self.grid[pos]]
-        
+
 
     # deletes activity at specified position
     def delete_activity(self, act):
@@ -82,8 +85,10 @@ class City(object):
     
     # get the candidate positions in the field of an initiate state
     def get_grow_candidates(self, act):
-        grow_candidates = [candidate for candidate in act.field_neighbors if isinstance(self.grid[candidate],Empty)]
-        grow_probs = [grow_prob(np.array(candidate_pos), np.array(act.pos), self.dist_decay) for candidate_pos in grow_candidates]
+        grow_candidates = [[candidate, act] for candidate in act.field_neighbors if
+                           isinstance(self.grid[candidate], Empty)]
+        grow_probs = [grow_prob(np.array(candidate_pos[0]), np.array(act.pos), self.dist_decay) for candidate_pos in
+                      grow_candidates]
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
     # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
@@ -98,24 +103,52 @@ class City(object):
         except: print(candidate_neighborhood)
         return self.activity_threshold <= activity/((2*self.n_radius+1)**2-1)
 
+
+
     # function to implement;
-    def determine_activity(self):
-        pass
+    def determine_activity(self, grow_candidates):
+        for candidate in grow_candidates:
+            z = np.random.rand()
+            if isinstance(candidate[1], Housing):
+                probsum = np.cumsum(self.inMatrix[0])
+
+            elif isinstance(candidate[1], Industry):
+                probsum = np.cumsum(self.inMatrix[1])
+
+            elif isinstance(candidate[1], Street):
+                probsum = np.cumsum(self.inMatrix[3])
+
+            else:
+                probsum = np.cumsum(self.inMatrix[2])
+
+            if z < probsum[0]:
+                candidate[1] = Housing
+            elif z < probsum[1]:
+                candidate[1] = Industry
+            elif z < probsum[2]:
+                candidate[1] = Stores
+            else:
+                candidate[1] = Street
+
+        return grow_candidates
 
     # initiate possible new cells
     def initiate_new(self):
         init_sites = [act for act in self.all_activities if act.type == 'init']
         new_activities = []
+        new_positions = []
+        new_type = []
         for act in init_sites:
-            grow_candidates = self.get_grow_candidates(act)
-            new_activities += [candidate for candidate in grow_candidates if self.candidate_check(candidate)]
-            # print(new_activities)
-            # print('--------------------------------')
-            # self.determine_activity()
-        [self.add_activity(act_pos) for act_pos in set(list(new_activities))]
 
-        # 1 determine if cell is canididate for growing
-        # 2 check neighborhood of cell
+            grow_candidates = self.get_grow_candidates(act)
+            grow_candidates = [candidate for candidate in grow_candidates if self.candidate_check(candidate[0])]
+            new_variable = self.determine_activity(grow_candidates)
+            for var in new_variable:
+                if var[0] not in new_positions:
+                    new_positions.append(var[0])
+                    new_type.append(var[1])
+        [self.add_activity(new_positions[i], new_type[i]) for i in range(len(new_positions))]
+
 
  # get the neigbors cell given neigborhood
     def get_neighbors(self, pos, radius):
@@ -138,6 +171,11 @@ class City(object):
         self.delete_declining()
         self.history += [copy.copy(self.grid)]
 
+    # def stepStreet(self, candidate):
+    #     if 0.8 < np.random.rand():
+    #         neighbourh = candidate.neighbourhood
+
+
 class Empty(object):
     def __init__(self, pos, neighborhood, field_neighbors, n):
         self.value = 0
@@ -148,7 +186,6 @@ class Empty(object):
 
 class Activity(object):
     def __init__(self, pos, empty_cell, city):
-        self.value = 1
         self.decay = 1/30
         self.pos = pos
         self.city = city
@@ -162,7 +199,27 @@ class Activity(object):
         self.pi = np.exp(-self.decay*(self.city.t-self.init_t))
         self.pm = (1-self.pi)*np.exp(-self.decay*(self.city.t-self.init_t))
         self.pd = 1 - self.pm - self.pi
-        
+
+
+class Housing(Activity):
+    def __init__(self, pos, empty_cell, city):
+        super().__init__(pos, empty_cell, city)
+        self.value = 1
+
+class Industry(Activity):
+    def __init__(self, pos, empty_cell, city):
+        super().__init__(pos, empty_cell, city)
+        self.value = 2
+
+class Stores(Activity):
+    def __init__(self, pos, empty_cell, city):
+        super().__init__(pos, empty_cell, city)
+        self.value = 3
+
+class Street(Activity):
+    def __init__(self, pos, empty_cell, city):
+        super().__init__(pos, empty_cell, city)
+        self.value = 4
 # get the probability an activity is starting at candidate position
 # function is outside the class to use jit function
 # gives huge model speedup
