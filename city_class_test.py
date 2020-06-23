@@ -13,7 +13,10 @@ from numba import int32, float32, types, typed, jit    # import the types
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
     def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, activity_threshold=1/8, \
-                                                                    street_thresholds={'housing':0.1, 'industry':0.6, 'stores':0.7}):
+                                                                    street_thresholds={'housing':0.1, 'industry':0.6, 'stores':0.7}, \
+                 industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},
+                 store_threshold={'housing':0.2, 'industry':0.2, 'stores':1, 'streets':0},
+                 housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
         self.inMatrix = np.array([[0.95, 0.025, 0.025], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
         self.n = n
         self.t = 0
@@ -27,6 +30,9 @@ class City(object):
 
         self.street_thresholds = street_thresholds
         self.activity_threshold = activity_threshold
+        self.industry_threshold = industry_threshold
+        self.housing_threshold = housing_threshold
+        self.store_threshold = store_threshold
         self.all_activities = []
 
         self.mature_decay
@@ -143,29 +149,56 @@ class City(object):
 
     # function to implement;
     def determine_activity(self, grow_candidates):
+        real_list = []
         for candidate in grow_candidates:
             z = np.random.rand()
+            new_node_neighborhood = self.grid[candidate[0]].field_neighbors
             if isinstance(candidate[1], Housing):
+                # inMatrix = kans van huis naar huis, industry, store
+                # ook kijken naar meer huizen in de buurt == grotere kans op huis
                 probsum = cumsum(self.inMatrix[0])
-            elif isinstance(candidate[1], Industry):
-                probsum = cumsum(self.inMatrix[1])
-            else:
-                probsum = cumsum(self.inMatrix[2])
-            if z < probsum[0]:
-                candidate[1] = Housing
-            elif z < probsum[1]:
-                candidate[1] = Industry
-            else:
-                candidate[1] = Stores
-        return grow_candidates
+                if z < probsum[0]:
+                    if self.check_density_activity(new_node_neighborhood, self.housing_threshold):
+                        candidate[1] = Housing
+                        real_list += [candidate]
 
-    def max_density_check(self, new_node_neighborhood, thresholds):
+                elif z < probsum[1]:
+                    if self.check_density_activity(new_node_neighborhood, self.industry_threshold):
+                        candidate[1] = Industry
+                        real_list += [candidate]
+
+                else:
+                    if self.check_density_activity(new_node_neighborhood, self.store_threshold):
+                        candidate[1] = Stores
+                        real_list += [candidate]
+
+            elif isinstance(candidate[1], Industry):
+                if self.check_density_activity(new_node_neighborhood, self.industry_threshold):
+                    candidate[1] = Industry
+                    real_list += [candidate]
+            else:
+                if self.check_density_activity(new_node_neighborhood, self.store_threshold):
+                    candidate[1] = Stores
+                    real_list += [candidate]
+        return real_list
+
+    def street_density_check(self, new_node_neighborhood, thresholds):
+        housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
+        if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
+            return True
+        return False
+
+    def neighbourhood_density(self, new_node_neighborhood):
         housing = sum(self.grid[neighbor].value == 1 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
         industry= sum(self.grid[neighbor].value == 2 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
         stores = sum(self.grid[neighbor].value == 3 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
-        streets = sum(self.grid[neighbor].value == 4 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
+        streets = sum(self.grid[neighbor].value == 4 or self.grid[neighbor].value == 5 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
+        return housing, industry, stores, streets
 
-        if (housing < thresholds['housing'] and industry < thresholds['industry'] and stores < thresholds['stores'] and streets == 0):
+    def check_density_activity(self, new_node_neighborhood, thresholds):
+        housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
+        if (housing < thresholds['housing'] and industry < thresholds['industry'] and stores < thresholds['stores'] \
+                and streets > thresholds['streets']):
             return True
         return False
 
@@ -173,7 +206,7 @@ class City(object):
         new_nodes = []
         for node in new_street_nodes:
             new_node_neighborhood = self.grid[node[0]].neighborhood
-            if self.max_density_check(new_node_neighborhood, self.street_thresholds):
+            if self.street_density_check(new_node_neighborhood, self.street_thresholds):
                 new_nodes += [node]
         return new_nodes
 
@@ -204,7 +237,7 @@ class City(object):
         new_type = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
-            grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
+            # grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
             new_variable = self.determine_activity(grow_candidates)
 
             for var in new_variable:
@@ -274,9 +307,50 @@ class Industry(Activity):
     def __init__(self, pos, empty_cell, city,init_decay, mature_decay):
         super().__init__(pos, empty_cell, city,  init_decay, mature_decay, value=2)
 
+    #check activity, check all houses/stores/streets in the neighbourhood, if < threshold its okay, if > threshold not
+    # def check_activity(self, candidate):
+    #     candidate_field = self.city.grid[candidate].field
+    #     node_density = 0
+    #     house_density = 0
+    #     stores_density = 0
+    #     for pos in candidate_field:
+    #         for neighbour in self.city.grid[pos].neighbourhood:
+    #             if isinstance(self.city.grid[neighbour], StreetNode):
+    #                 node_density += 1
+    #             elif isinstance(self.city.grid[neighbour], Housing):
+    #                 house_density += 1
+    #             elif isinstance(self.city.grid[neighbour], Stores):
+    #                 stores_density += 1
+    #
+    #     if stores_density / len(candidate_field) < 0.4 and house_density / len(candidate_field) < 0.4 and \
+    #         node_density > 2:
+    #         return True
+    #     return False
+
 class Stores(Activity):
     def __init__(self, pos, empty_cell, city, init_decay, mature_decay):
         super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=3)
+
+    # def check_activity(self, candidate):
+    #     print(candidate)
+    #     print(City.grid[candidate].field)
+    #     candidate_field = self.grid[candidate].field
+    #     node_density = 0
+    #     house_density = 0
+    #     industry_density = 0
+    #     for pos in candidate_field:
+    #         for neighbour in self.grid[pos].neighbourhood:
+    #             if isinstance(self.grid[neighbour], StreetNode):
+    #                 node_density += 1
+    #             elif isinstance(self.grid[neighbour], Housing):
+    #                 house_density += 1
+    #             elif isinstance(self.grid[neighbour], Industry):
+    #                 industry_density += 1
+    #
+    #     if industry_density / len(candidate_field) < 0.4 and house_density / len(candidate_field) < 0.4 and \
+    #         node_density > 2:
+    #         return True
+    #     return False
 
 class StreetNode(object):
     def __init__(self, pos, empty_cell, street_field, city):
