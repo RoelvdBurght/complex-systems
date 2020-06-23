@@ -44,7 +44,7 @@ class City(object):
         self.street_nodes = []
 
         self.grid = self.initialise_grid()
-        # self.init_activity()
+        self.init_activity()
         self.init_streets()
         self.add_activity((n//2,n//2), Housing)
         # self.add_activity((0,0))
@@ -84,12 +84,16 @@ class City(object):
         del empty_cell
 
     def init_activity(self):
+        j=-1
         for _ in range(4):
+            j=j+1
             pos = np.random.randint(0,self.n,2)
             pos2 = pos + 1
-            clas = self.types[0]
+            clas = self.types[j]
             self.add_activity(tuple(pos), clas)
             self.add_activity(tuple(pos2), clas)
+            if j=2:
+                j=0
 
     # adds a activity at specified position
     def add_activity(self, pos, clas):
