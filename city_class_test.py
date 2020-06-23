@@ -92,7 +92,7 @@ class City(object):
             clas = self.types[j]
             self.add_activity(tuple(pos), clas)
             self.add_activity(tuple(pos2), clas)
-            if j=2:
+            if j==2:
                 j=0
 
     # adds a activity at specified position
