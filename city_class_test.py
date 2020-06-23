@@ -165,8 +165,9 @@ class City(object):
         stores = sum(self.grid[neighbor].value == 3 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
         streets = sum(self.grid[neighbor].value == 4 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
 
-        if (housing < thresholds['housing'] and industry < thresholds['industry'] and stores < thresholds['stores'] and streets == 0):
-            return True
+        if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']):
+            if streets == 0:
+                return True
         return False
 
     def street_check(self, new_street_nodes):
