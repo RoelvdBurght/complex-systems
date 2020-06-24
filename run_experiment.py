@@ -20,7 +20,6 @@ class SafeSpace(object):
 
 def main(iteration):
 
-    print('hoi')
     plot = False
     # for iteration in range(10):
 
@@ -42,7 +41,7 @@ def main(iteration):
         savert = SafeSpace(param, city)
         if not os.path.isdir(loc):
             os.makedirs(loc)
-
+        print(loc)
         pickle.dump(savert, open('{}/run_{}.p'.format(loc, iteration), 'wb'))
 
     del savert
@@ -56,5 +55,5 @@ def main(iteration):
             plt.show()
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
