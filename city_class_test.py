@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 import multiprocessing as mp
 import os
+import gc
 from time import time
 # import copy
 from bresenham import bresenham
@@ -391,6 +392,7 @@ class Runner(object):
         argument_list = [(arg, seed) for arg, seed in zip(self.args, seeds)]
         pool = mp.Pool(os.cpu_count())
         result_cities = pool.starmap(self.iterate_city, argument_list)
+        pool.close()
         print(result_cities)
         self.cities = result_cities
         # for v in self.vars:
@@ -404,14 +406,8 @@ class Runner(object):
 
     def clean_memory(self):
         del self
+        gc.collect()
 
-    def plot(self):
-        fig, axes = plt.subplots(4, figsize=(16,16))
-        labels = ['Housing', 'Industry', 'Stores', 'Streets']
-        sns.lineplot(range(len(self.final_houseing)), self.final_houseing, ax=axes[0])
-        sns.lineplot(range(len(self.final_stores)), self.final_stores, ax=axes[1])
-        sns.lineplot(range(len(self.final_industry)), self.final_industry, ax=axes[2])
-        plt.show()
 
     def plot_grid(self, city_num, city_n=100):
         fig, ax = plt.subplots()
@@ -419,7 +415,6 @@ class Runner(object):
         activity_grid = np.array([obj.value for row in self.cities[city_num].grid for obj in row]).reshape(city_n,city_n)
         sns.heatmap(activity_grid, cmap=cmap, ax=ax)
         return fig
-        # plt.show()
 
 
 # calculates the probability for a activity to be of some type

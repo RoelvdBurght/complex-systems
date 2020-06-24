@@ -2,11 +2,12 @@ import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
-
+import gc
 import city_class_test as cc
 import time
 import pickle
 import os
+
 import sys
 
 
@@ -34,7 +35,7 @@ def main(iteration):
 
         locations.append('results/street_params/activity_{}'.format(h))
 
-    r = cc.Runner(params_to_test, iterations=10)
+    r = cc.Runner(params_to_test, iterations=1000)
     r.run_experiment()
 
     # save results
@@ -46,7 +47,9 @@ def main(iteration):
         pickle.dump(savert, open('{}/run_{}.p'.format(loc, iteration), 'wb'))
 
     del savert
+    r.clean_memory()
     del r
+    gc.collect()
 
     end = time.time()
     print('Execution time: ', end - start)
