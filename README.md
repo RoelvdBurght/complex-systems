@@ -8,7 +8,7 @@ The model we build is a simulation of a city. How the city grows depending on mu
 We make use of three different activities and streets.
 We have houses, which generate other houses, industry and even stores.
 We have industry, which can only spawn industry and stores which can only spawn stores.
-Streets can only be build when there is a specific ratio of houses, industry or stores, and houses and industry can only be build when streets are present.
+Streets can only be build when there is a specific threshold of activity in the neighbourhood, and houses and industry can only be build when streets are present.
 This way, the development of the city follows the development of the streets and the other way around.
 
 ## Parameters
