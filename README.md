@@ -1,4 +1,4 @@
-# Complex simulation
+# Simulate a city
 Welcome to the repository of group 8
 
 ## Project
