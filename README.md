@@ -18,7 +18,8 @@ Our model makes use of multiple parameters. Considering there are a lot of restr
 We made use of a paper by Batty, which can be found [here](https://www.ucl.ac.uk/bartlett/casa/sites/bartlett/files/ceus-paper.pdf).
 
 ## Simulation
-INSERT PICTURE OF MODEL
+![Here is a random simulation of our model](https://github.com/RoelvdBurght/complex-systems/blob/master/RandomPicture.png)
+We see that it contains streets, houses(green), industry(yellow) and stores(blue)
 
 ### Contributors
 Bart van Laatum
