@@ -221,7 +221,7 @@ class City(object):
 
     def check_density_activity(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
-        if (housing < thresholds['housing'] and industry < thresholds['industry'] and stores < thresholds['stores'] \
+        if (housing <= thresholds['housing'] and industry <= thresholds['industry'] and stores <= thresholds['stores'] \
                 and streets > thresholds['streets']):
             return True
         return False
