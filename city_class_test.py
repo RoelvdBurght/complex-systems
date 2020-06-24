@@ -35,7 +35,7 @@ class City(object):
         self.store_threshold = store_threshold
         self.all_activities = []
 
-        self.mature_decay
+        # self.mature_decay
         self.types = [Housing, Industry, Stores]        
         self.house_activity = 0
         self.industry_activity = 0
@@ -90,6 +90,8 @@ class City(object):
             pos = np.random.randint(0,self.n,2)
             pos2 = pos + 1
             clas = self.types[j]
+            print(clas)
+
             self.add_activity(tuple(pos), clas)
             self.add_activity(tuple(pos2), clas)
             if j==2:
@@ -97,6 +99,9 @@ class City(object):
 
     # adds a activity at specified position
     def add_activity(self, pos, clas):
+        print(self.grid)
+        print(self.grid.size)
+        print(pos)
         empty_cell = self.grid[pos]
         self.grid[pos] = clas(pos, empty_cell, self, self.init_decay, self.mature_decay)
         del empty_cell
@@ -241,8 +246,6 @@ class City(object):
         new_type = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
-            # grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
-            grow_candidates = [candidate for candidate in grow_candidates if self.grid[candidate[0]].check_activity()]
             new_variable = self.determine_activity(grow_candidates)
 
             for var in new_variable:
@@ -276,6 +279,15 @@ class City(object):
         self.activities[2] += [sum([1 for act in self.all_activities if isinstance(act, Stores)])]
         # self.history += [copy.copy(self.grid)]
 
+    def plot_growth(self):
+        fig, axes = plt.subplots(4, figsize=(16,16))
+        labels = ['Housing', 'Industry', 'Stores', 'Streets']
+        for i, act in enumerate(self.activities):
+            sns.lineplot(range(len(act)), act, ax=axes[i])
+            axes[i].set_xlabel(labels[i])
+            axes[i].set_ylabel('Time')
+        plt.show()
+
 class Empty(object):
     def __init__(self, pos, neighborhood, field_neighbors, n):
         self.value = 0
@@ -305,11 +317,8 @@ class Activity(object):
         # self.pd = 1 - self.pm - self.pi
 
 class Housing(Activity):
-    def __init__(self, pos, empty_cell, city,init_decay, mature_decay):
+    def __init__(self, pos, empty_cell, city, init_decay, mature_decay):
         super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=1)
-    def __init__(self, pos, empty_cell, city):
-        super().__init__(pos, empty_cell, city, value=1)
-        self.street_node_threshold = 0.25 #----------- betere waarde voor vinden
 
     def check_activity(self, candidate):
         candidate_field = self.city.grid[candidate].field
@@ -386,6 +395,29 @@ class StreetRoute(object):
         self.field_neighbors = empty_cell.field_neighbors
         self.value = 5
 
+class Runner(object):
+    def __init__(self, change_var, vars, iterations=250):
+        self.change_var = change_var
+        self.vars = vars
+        self.iterations = iterations
+        self.results = []
+
+    def run_experiment(self):
+        for v in self.vars:
+            city = City(**{self.change_var:v})
+            for i in range(len(self.iterations)):
+                city.step()
+            # self.results.append(self.city.activities)
+
+
+    # def plot_results(self):
+    #     fig, axes = plt.subplots(4, figsize=(16, 16))
+    #     labels = ['Housing', 'Industry', 'Stores', 'Streets']
+    #     for i, act in enumerate(self.results):
+    #         sns.lineplot(range(len(act)), act, ax=axes[i])
+    #         axes[i].set_xlabel(labels[i])
+    #         axes[i].set_ylabel('Time')
+    #     plt.show()
 
 # calculates the probability for a activity to be of some type
 @jit(nopython=True)
