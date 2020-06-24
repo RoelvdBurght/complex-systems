@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
+import multiprocessing as mp
+import os
 from time import time
 # import copy
 from bresenham import bresenham
@@ -12,8 +14,8 @@ from numba import int32, float32, types, typed, jit    # import the types
 
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
-    def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
-                                                                    street_thresholds={'housing':0.1, 'industry':0.6, 'stores':0.7}, \
+    def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
+                                                                    street_thresholds={'activity':0.2}, \
                                                                     industry_threshold={'housing':0.2, 'industry':1, 'stores':0.4, 'streets':0.15},
                                                                     store_threshold={'housing':0.2, 'industry':0.2, 'stores':1, 'streets':0},
                                                                     housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
@@ -76,8 +78,11 @@ class City(object):
                 second_pos = (init_pos[0]+np.random.randint(-5,6), init_pos[1])
                 third_pos = (init_pos[0], init_pos[1]+np.random.randint(-5,6))
 
-        self.lay_street(init_pos, second_pos)
-        self.lay_street(init_pos, third_pos)
+                self.lay_street(init_pos, second_pos)
+                self.lay_street(init_pos, third_pos)
+            except:
+                continue
+            i+=1
 
     def lay_street(self, init_pos, second_pos):
         empty_cell = self.grid[second_pos]
@@ -144,7 +149,7 @@ class City(object):
 
     # get the candidate positions in the field of an initiate state
     def get_grow_candidates(self, act):
-        grow_candidates = [[candidate,act] for candidate in act.field_neighbors if isinstance(self.grid[candidate], Empty)]
+        grow_candidates = [[candidate, act] for candidate in act.field_neighbors if isinstance(self.grid[candidate], Empty)]
         grow_probs = [calc_grow_prob(np.array(candidate_pos[0]), np.array(act.pos), self.dist_decay) for candidate_pos in grow_candidates]
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
@@ -193,9 +198,16 @@ class City(object):
                     real_list += [candidate]
         return real_list
 
+    # def street_density_check(self, new_node_neighborhood, thresholds):
+    #     housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
+    #     if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
+    #         return True
+    #     return False
+
     def street_density_check(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
-        if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
+        if sum([housing, industry, stores]) >= thresholds['activity'] and streets == 0:
+            # if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
             return True
         return False
 
@@ -337,50 +349,10 @@ class Industry(Activity):
     def __init__(self, pos, empty_cell, city,init_decay=1/15, mature_decay=1/30):
         super().__init__(pos, empty_cell, city,  init_decay, mature_decay, value=2)
 
-    #check activity, check all houses/stores/streets in the neighbourhood, if < threshold its okay, if > threshold not
-    # def check_activity(self, candidate):
-    #     candidate_field = self.city.grid[candidate].field
-    #     node_density = 0
-    #     house_density = 0
-    #     stores_density = 0
-    #     for pos in candidate_field:
-    #         for neighbour in self.city.grid[pos].neighbourhood:
-    #             if isinstance(self.city.grid[neighbour], StreetNode):
-    #                 node_density += 1
-    #             elif isinstance(self.city.grid[neighbour], Housing):
-    #                 house_density += 1
-    #             elif isinstance(self.city.grid[neighbour], Stores):
-    #                 stores_density += 1
-    #
-    #     if stores_density / len(candidate_field) < 0.4 and house_density / len(candidate_field) < 0.4 and \
-    #         node_density > 2:
-    #         return True
-    #     return False
-
 class Stores(Activity):
     def __init__(self, pos, empty_cell, city, init_decay=1/10, mature_decay=1/30):
         super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=3)
 
-    # def check_activity(self, candidate):
-    #     print(candidate)
-    #     print(City.grid[candidate].field)
-    #     candidate_field = self.grid[candidate].field
-    #     node_density = 0
-    #     house_density = 0
-    #     industry_density = 0
-    #     for pos in candidate_field:
-    #         for neighbour in self.grid[pos].neighbourhood:
-    #             if isinstance(self.grid[neighbour], StreetNode):
-    #                 node_density += 1
-    #             elif isinstance(self.grid[neighbour], Housing):
-    #                 house_density += 1
-    #             elif isinstance(self.grid[neighbour], Industry):
-    #                 industry_density += 1
-    #
-    #     if industry_density / len(candidate_field) < 0.4 and house_density / len(candidate_field) < 0.4 and \
-    #         node_density > 2:
-    #         return True
-    #     return False
 
 class StreetNode(object):
     def __init__(self, pos, empty_cell, street_field, city):
@@ -399,28 +371,56 @@ class StreetRoute(object):
         self.value = 5
 
 class Runner(object):
-    def __init__(self, change_var, vars, iterations=250):
-        self.change_var = change_var
-        self.vars = vars
+    def __init__(self, args, iterations=50):
+        self.args = args
         self.iterations = iterations
-        self.results = []
+        self.cities = []
+
+    def iterate_city(self, arguments, seed):
+        # Runs the model for specified number of iterations with given variable
+        np.random.seed(seed)
+        print('s', seed)
+        print('a', arguments)
+        city = City(**arguments)
+        for i in range(self.iterations):
+            city.step()
+        return city
 
     def run_experiment(self):
-        for v in self.vars:
-            city = City(**{self.change_var:v})
-            for i in range(len(self.iterations)):
-                city.step()
-            # self.results.append(self.city.activities)
+        seeds = [np.random.randint(0, 1000000) for _ in range(len(self.args))]
+        argument_list = [(arg, seed) for arg, seed in zip(self.args, seeds)]
+        pool = mp.Pool(os.cpu_count())
+        result_cities = pool.starmap(self.iterate_city, argument_list)
+        print(result_cities)
+        self.cities = result_cities
+        # for v in self.vars:
+        #
+        #     city = self.iterate_city(v)
+        #
+        #     self.grids.append(city.grid)
+        #     self.final_houseing.append(city.activities[0][-1])
+        #     self.final_industry.append(city.activities[1][-1])
+        #     self.final_stores.append(city.activities[2][-1])
 
+    def clean_memory(self):
+        del self
 
-    # def plot_results(self):
-    #     fig, axes = plt.subplots(4, figsize=(16, 16))
-    #     labels = ['Housing', 'Industry', 'Stores', 'Streets']
-    #     for i, act in enumerate(self.results):
-    #         sns.lineplot(range(len(act)), act, ax=axes[i])
-    #         axes[i].set_xlabel(labels[i])
-    #         axes[i].set_ylabel('Time')
-    #     plt.show()
+    def plot(self):
+        fig, axes = plt.subplots(4, figsize=(16,16))
+        labels = ['Housing', 'Industry', 'Stores', 'Streets']
+        sns.lineplot(range(len(self.final_houseing)), self.final_houseing, ax=axes[0])
+        sns.lineplot(range(len(self.final_stores)), self.final_stores, ax=axes[1])
+        sns.lineplot(range(len(self.final_industry)), self.final_industry, ax=axes[2])
+        plt.show()
+
+    def plot_grid(self, city_num, city_n=100):
+        fig, ax = plt.subplots()
+        cmap = sns.color_palette(["black", "forestgreen", "gold", "navy", "grey"])
+        activity_grid = np.array([obj.value for row in self.cities[city_num].grid for obj in row]).reshape(city_n,city_n)
+        sns.heatmap(activity_grid, cmap=cmap, ax=ax)
+        return fig
+        # plt.show()
+
 
 # calculates the probability for a activity to be of some type
 @jit(nopython=True)
@@ -445,7 +445,10 @@ def cumsum(l):
     return np.cumsum(l)
 
 if __name__ ==  "__main__":
+    pass
 # #     t = time()
-    np.random.seed(90)
-    city = City(n=50)
+#     np.random.seed(90)
+
+    # city = City(n=50)
+
     # city.initiate_streets()
