@@ -17,10 +17,17 @@ Our model makes use of multiple parameters. Considering there are a lot of restr
 ## Papers
 We made use of a paper by Batty, which can be found [here](https://www.ucl.ac.uk/bartlett/casa/sites/bartlett/files/ceus-paper.pdf).
 
+## Website
+Please click [here](compsysgroupeight.wordpress.com) to go to our website. Here you can find more information and see more simulations.
+
 ## Simulation
 ![Here is a random simulation of our model](https://github.com/RoelvdBurght/complex-systems/blob/master/RandomPicture.png)
 
 We see that it contains streets (grey), houses (green), industry (yellow) and stores (blue).
+
+## Running the code
+Our simulation is run by running our jupyter notebook called *simulate_city.ipynb*.
+For changing the parameters, go to *city_class_test.py* and change them in the corresponding thresholds.
 
 ### Contributors
 Bart van Laatum
