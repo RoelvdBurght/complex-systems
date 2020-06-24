@@ -2,27 +2,24 @@ import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
-
+import gc
 import city_class_test as cc
 import time
 import pickle
 import os
+
 import sys
 
 
 class SafeSpace(object):
     def __init__(self, parameters, city):
         self.parameters = parameters
-        self.activity_grid = np.array([obj.value for row in city.grid for obj in row]).reshape(100, 100)
+        self.activity_grid = np.array([obj.value for row in city.grid for obj in row]).reshape(city.n, city.n)
         self.housing_over_time = city.activities[0]
         self.industry_over_time = city.activities[1]
         self.stores_over_time = city.activities[2]
 
 def main(iteration):
-
-    plot = False
-    # for iteration in range(10):
-
     start = time.time()
 
     params_to_test = []
@@ -41,19 +38,15 @@ def main(iteration):
         savert = SafeSpace(param, city)
         if not os.path.isdir(loc):
             os.makedirs(loc)
-        print(loc)
         pickle.dump(savert, open('{}/run_{}.p'.format(loc, iteration), 'wb'))
 
     del savert
+    r.clean_memory()
     del r
+    gc.collect()
 
     end = time.time()
     print('Execution time: ', end - start)
-    if plot:
-        for i in range(len(r.cities)):
-            fig = r.plot_grid(i)
-            plt.show()
-
 
 # if __name__ == '__main__':
 #     main()

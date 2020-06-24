@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 import multiprocessing as mp
 import os
+import gc
 from time import time
 # import copy
 from bresenham import bresenham
@@ -14,12 +15,12 @@ from numba import int32, float32, types, typed, jit    # import the types
 
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
-    def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/30, dist_decay=0.9,\
+    def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/30, dist_decay=0.9,\
                                                                     inMatrix = [[0.9,0.05,0.05]],\
                                                                     street_thresholds={'activity':0.2},\
                                                                     industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},\
                                                                     store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0.0},\
-                                                                    housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
+                                                                    housing_threshold={'housing':1, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
 
         self.inMatrix = np.array(inMatrix)
         self.n = n
@@ -51,10 +52,6 @@ class City(object):
         self.grid = self.initialise_grid()
         self.init_streets(n_init)
         self.init_activity(n_house_inits)
-        # self.add_activity((n//2,n//2), Housing)
-        # self.add_activity((0,0))
-        # self.add_activity((n//2+1,n//2+1))    
-        # self.history = [self.grid]
 
 
     def initialise_grid(self):
@@ -297,10 +294,9 @@ class City(object):
         self.initiate_streets()
         self.initiate_activity()
         self.delete_declining()
-        # self.activities[0] += [sum([1 for act in self.all_activities if act.value==1])]
-        # self.activities[1] += [sum([1 for act in self.all_activities if act.value == 2])]
-        # self.activities[2] += [sum([1 for act in self.all_activities if act.value == 3])]
-        # self.history += [copy.copy(self.grid)]
+        self.activities[0] += [sum([1 for act in self.all_activities if act.value==1])]
+        self.activities[1] += [sum([1 for act in self.all_activities if act.value == 2])]
+        self.activities[2] += [sum([1 for act in self.all_activities if act.value == 3])]
 
     def plot_growth(self):
         fig, axes = plt.subplots(4, figsize=(16,16))
@@ -387,18 +383,12 @@ class Runner(object):
         argument_list = [(arg, seed) for arg, seed in zip(self.args, seeds)]
         pool = mp.Pool(os.cpu_count())
         result_cities = pool.starmap(self.iterate_city, argument_list)
+        pool.close()
         self.cities = result_cities
-        # for v in self.vars:
-        #
-        #     city = self.iterate_city(v)
-        #
-        #     self.grids.append(city.grid)
-        #     self.final_houseing.append(city.activities[0][-1])
-        #     self.final_industry.append(city.activities[1][-1])
-        #     self.final_stores.append(city.activities[2][-1])
 
     def clean_memory(self):
         del self
+        gc.collect()
 
     def plot_grid(self, city_num, city_n=100):
         fig, ax = plt.subplots()
@@ -406,7 +396,6 @@ class Runner(object):
         activity_grid = np.array([obj.value for row in self.cities[city_num].grid for obj in row]).reshape(city_n,city_n)
         sns.heatmap(activity_grid, cmap=cmap, ax=ax)
         return fig
-        # plt.show()
 
 
 # calculates the probability for a activity to be of some type
@@ -415,8 +404,6 @@ def fast_calc_probs(init_decay, mature_decay, t, init_t):
     pi = np.exp(-init_decay*(t-init_t))
     pm = (1-pi)*np.exp(-mature_decay*(t-init_t))
     return pi,pm, 1-pi-pm
-
-
 
 # get the probability an activity is starting at candidate position
 # function is outside the class to use faster jit function
@@ -441,9 +428,3 @@ def cumsum(l):
 
 if __name__ ==  "__main__":
     pass
-# #     t = time()
-#     np.random.seed(90)
-
-    # city = City(n=50)
-
-    # city.initiate_streets()
