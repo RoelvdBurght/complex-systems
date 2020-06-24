@@ -18,7 +18,7 @@ Our model makes use of multiple parameters. Considering there are a lot of restr
 We made use of a paper by Batty, which can be found [here](https://www.ucl.ac.uk/bartlett/casa/sites/bartlett/files/ceus-paper.pdf).
 
 ## Website
-Please click [here](compsysgroupeight.wordpress.com) to go to our website. Here you can find more information and see more simulations.
+Please click [here](https://compsysgroupeight.wordpress.com/) to go to our website. Here you can find more information and see more simulations.
 
 ## Simulation
 ![Here is a random simulation of our model](https://github.com/RoelvdBurght/complex-systems/blob/master/RandomPicture.png)
