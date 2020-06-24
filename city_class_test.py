@@ -17,9 +17,9 @@ from numba import int32, float32, types, typed, jit    # import the types
 class City(object):
     def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
                                                                     street_thresholds={'activity':0.2}, \
-                                                                    industry_threshold={'housing':0.2, 'industry':1, 'stores':0.4, 'streets':0.15},
-                                                                    store_threshold={'housing':0.2, 'industry':0.2, 'stores':1, 'streets':0},
-                                                                    housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
+                                                                    industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},
+                                                                    store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0},
+                                                                    housing_threshold={'housing':1, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
 
         self.inMatrix = np.array([[0.9, 0.05, 0.05], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
         self.n = n
