@@ -22,6 +22,9 @@ INSERT PICTURE OF MODEL
 
 ### Contributors
 Bart van Laatum
+
 Roel van der Burght
+
 Sami Achetib
+
 Wiebe Jelsma
