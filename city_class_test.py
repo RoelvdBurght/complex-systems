@@ -12,12 +12,13 @@ from numba import int32, float32, types, typed, jit    # import the types
 
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
-    def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, activity_threshold=1/8, \
+    def __init__(self, n=10, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
                                                                     street_thresholds={'housing':0.1, 'industry':0.6, 'stores':0.7}, \
-                 industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},
-                 store_threshold={'housing':0.2, 'industry':0.2, 'stores':1, 'streets':0},
-                 housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
-        self.inMatrix = np.array([[0.95, 0.025, 0.025], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
+                                                                    industry_threshold={'housing':0.2, 'industry':1, 'stores':0.4, 'streets':0.15},
+                                                                    store_threshold={'housing':0.2, 'industry':0.2, 'stores':1, 'streets':0},
+                                                                    housing_threshold={'housing':0.8, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
+
+        self.inMatrix = np.array([[0.9, 0.05, 0.05], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
         self.n = n
         self.t = 0
         self.n_radius = n_radius
@@ -29,7 +30,8 @@ class City(object):
         self.dist_decay = dist_decay
 
         self.street_thresholds = street_thresholds
-        self.activity_threshold = activity_threshold
+
+        # self.activity_threshold = activity_threshold
         self.industry_threshold = industry_threshold
         self.housing_threshold = housing_threshold
         self.store_threshold = store_threshold
@@ -44,9 +46,9 @@ class City(object):
         self.street_nodes = []
 
         self.grid = self.initialise_grid()
-        self.init_activity()
-        self.init_streets()
-        self.add_activity((n//2,n//2), Housing)
+        self.init_streets(n_init)
+        self.init_activity(n_house_inits)
+        # self.add_activity((n//2,n//2), Housing)
         # self.add_activity((0,0))
         # self.add_activity((n//2+1,n//2+1))    
         # self.history = [self.grid]
@@ -62,14 +64,17 @@ class City(object):
                 grid[(i,j)] = cell
         return grid
 
-    def init_streets(self):
-        init_pos = (self.n//2-1, self.n//2-1)
-        empty_cell = self.grid[init_pos]
-        self.grid[init_pos] = StreetNode(init_pos, empty_cell, self.get_neighbors((init_pos[0],init_pos[1]), self.street_field_radius), self)
-        self.street_nodes += [self.grid[init_pos]]
-        del empty_cell
-        second_pos = (init_pos[0]+5, init_pos[1])
-        third_pos = (init_pos[0], init_pos[1]+5)
+    def init_streets(self, n_init):
+        i=0
+        while i < n_init:
+            init_pos = (np.random.randint(0,self.n), np.random.randint(0,self.n))
+            try:
+                empty_cell = self.grid[init_pos]
+                self.grid[init_pos] = StreetNode(init_pos, empty_cell, self.get_neighbors((init_pos[0],init_pos[1]), self.street_field_radius), self)
+                self.street_nodes += [self.grid[init_pos]]
+                del empty_cell
+                second_pos = (init_pos[0]+np.random.randint(-5,6), init_pos[1])
+                third_pos = (init_pos[0], init_pos[1]+np.random.randint(-5,6))
 
         self.lay_street(init_pos, second_pos)
         self.lay_street(init_pos, third_pos)
@@ -83,25 +88,24 @@ class City(object):
             self.grid[cell] = StreetRoute(cell, self.grid[cell], self)
         del empty_cell
 
-    def init_activity(self):
-        j=-1
-        for _ in range(4):
-            j=j+1
-            pos = np.random.randint(0,self.n,2)
-            pos2 = pos + 1
-            clas = self.types[j]
-            print(clas)
-
-            self.add_activity(tuple(pos), clas)
-            self.add_activity(tuple(pos2), clas)
-            if j==2:
-                j=0
+    def init_activity(self, n_house_inits):
+        for streetNode in self.street_nodes:
+            # print('street_node', streetNode.pos)
+            i = 0
+            while i < n_house_inits:
+                # try:
+                pos = (streetNode.pos[0]+np.random.randint(-2,3),streetNode.pos[1]+np.random.randint(-2,3))
+                try:
+                    if self.grid[pos].value != 0:
+                        continue
+                except:
+                    continue
+                clas = self.types[0]
+                self.add_activity(tuple(pos), clas)
+                i += 1
 
     # adds a activity at specified position
     def add_activity(self, pos, clas):
-        print(self.grid)
-        print(self.grid.size)
-        print(pos)
         empty_cell = self.grid[pos]
         self.grid[pos] = clas(pos, empty_cell, self, self.init_decay, self.mature_decay)
         del empty_cell
@@ -145,16 +149,14 @@ class City(object):
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
     # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
-    def activity_check(self, candidate):
-        candidate_neighborhood = self.grid[candidate].neighborhood
-        activity = 0
-        for pos in candidate_neighborhood:
-            if isinstance(self.grid[pos], Activity):
-                activity += 1
-        return self.activity_threshold <= activity/len(candidate_neighborhood)
+    # def activity_check(self, candidate):
+    #     candidate_neighborhood = self.grid[candidate].neighborhood
+    #     activity = 0
+    #     for pos in candidate_neighborhood:
+    #         if isinstance(self.grid[pos], Activity):
+    #             activity += 1
+    #     return self.activity_threshold <= activity/len(candidate_neighborhood)
 
-    def street_density_check(self):
-        pass
 
     # function to implement;
     def determine_activity(self, grow_candidates):
@@ -246,6 +248,7 @@ class City(object):
         new_type = []
         for act in init_sites:
             grow_candidates = self.get_grow_candidates(act)
+            # grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
             new_variable = self.determine_activity(grow_candidates)
 
             for var in new_variable:
@@ -317,7 +320,7 @@ class Activity(object):
         # self.pd = 1 - self.pm - self.pi
 
 class Housing(Activity):
-    def __init__(self, pos, empty_cell, city, init_decay, mature_decay):
+    def __init__(self, pos, empty_cell, city, init_decay=1/30, mature_decay=1/30):
         super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=1)
 
     def check_activity(self, candidate):
@@ -331,7 +334,7 @@ class Housing(Activity):
         return street_node_density < self.street_node_threshold
 
 class Industry(Activity):
-    def __init__(self, pos, empty_cell, city,init_decay, mature_decay):
+    def __init__(self, pos, empty_cell, city,init_decay=1/15, mature_decay=1/30):
         super().__init__(pos, empty_cell, city,  init_decay, mature_decay, value=2)
 
     #check activity, check all houses/stores/streets in the neighbourhood, if < threshold its okay, if > threshold not
@@ -355,7 +358,7 @@ class Industry(Activity):
     #     return False
 
 class Stores(Activity):
-    def __init__(self, pos, empty_cell, city, init_decay, mature_decay):
+    def __init__(self, pos, empty_cell, city, init_decay=1/10, mature_decay=1/30):
         super().__init__(pos, empty_cell, city, init_decay, mature_decay, value=3)
 
     # def check_activity(self, candidate):
@@ -432,13 +435,6 @@ def fast_calc_probs(init_decay, mature_decay, t, init_t):
 @jit(nopython=True)
 def calc_grow_prob(candidate_pos, act_pos, dist_decay):
     return np.exp(-dist_decay*euclidean_dist(act_pos, candidate_pos))
-
-# @jit(nopython=True)
-# def grow_probs2(grow_candidates, number_candidates, act_pos, dist_decay):
-#     grow_probs = np.zeros(number_candidates)
-#     for i in range(number_candidates):
-#         grow_probs[i] += calc_grow_prob(grow_candidates[i], act_pos, dist_decay)
-#     return grow_probs
 
 @jit(nopython=True)
 def euclidean_dist(pos1, pos2):
