@@ -8,7 +8,6 @@ from time import time
 # import copy
 from bresenham import bresenham
 from itertools import combinations_with_replacement
-
 from numba import int32, float32, types, typed, jit    # import the types
 # from numba.experimental import jitclass
 
