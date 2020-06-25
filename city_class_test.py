@@ -17,8 +17,8 @@ from numba import int32, float32, types, typed, jit    # import the types
 class City(object):
     def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
                                                                     street_thresholds={'activity':0.2}, \
-                                                                    industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},
-                                                                    store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0},
+                                                                    industry_threshold={'housing':0.2, 'industry':1, 'stores':0.2, 'streets':0.15},
+                                                                    store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0.05},
                                                                     housing_threshold={'housing':1, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
 
         self.inMatrix = np.array([[0.9, 0.05, 0.05], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
@@ -33,15 +33,12 @@ class City(object):
         self.dist_decay = dist_decay
 
         self.street_thresholds = street_thresholds
-
-        # self.activity_threshold = activity_threshold
         self.industry_threshold = industry_threshold
         self.housing_threshold = housing_threshold
         self.store_threshold = store_threshold
         self.all_activities = []
 
-        # self.mature_decay
-        self.types = [Housing, Industry, Stores]        
+        self.types = [Housing, Industry, Stores]
         self.house_activity = 0
         self.industry_activity = 0
         self.shopping_activity = 0
@@ -154,25 +151,15 @@ class City(object):
         grow_probs = [calc_grow_prob(np.array(candidate_pos[0]), np.array(act.pos), self.dist_decay) for candidate_pos in grow_candidates]
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
-    # checks the activity in the neighborhood of a candidate, when above threshold activity shall be made 
-    # def activity_check(self, candidate):
-    #     candidate_neighborhood = self.grid[candidate].neighborhood
-    #     activity = 0
-    #     for pos in candidate_neighborhood:
-    #         if isinstance(self.grid[pos], Activity):
-    #             activity += 1
-    #     return self.activity_threshold <= activity/len(candidate_neighborhood)
 
-
-    # function to implement;
+    # check which activity the now empty cell will get
     def determine_activity(self, grow_candidates):
         real_list = []
         for candidate in grow_candidates:
             z = np.random.rand()
-            new_node_neighborhood = self.grid[candidate[0]].field_neighbors
+            new_node_neighborhood = self.grid[candidate[0]].neighborhood
+            # check what the activity is, and what the new activity will be
             if isinstance(candidate[1], Housing):
-                # inMatrix = kans van huis naar huis, industry, store
-                # ook kijken naar meer huizen in de buurt == grotere kans op huis
                 probsum = cumsum(self.inMatrix[0])
                 if z < probsum[0]:
                     if self.check_density_activity(new_node_neighborhood, self.housing_threshold):
@@ -205,6 +192,7 @@ class City(object):
     #         return True
     #     return False
 
+    # check if the street can be build
     def street_density_check(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
         if sum([housing, industry, stores]) >= thresholds['activity'] and streets == 0:
@@ -212,20 +200,24 @@ class City(object):
             return True
         return False
 
+    # from neighbours check all activity
     def neighbourhood_density(self, new_node_neighborhood):
-        housing = sum(self.grid[neighbor].value == 1 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
-        industry= sum(self.grid[neighbor].value == 2 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
-        stores = sum(self.grid[neighbor].value == 3 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
-        streets = sum(self.grid[neighbor].value == 4 or self.grid[neighbor].value == 5 for neighbor in new_node_neighborhood)/len(new_node_neighborhood)
+        length_neighbours = len(new_node_neighborhood)
+        housing = sum(self.grid[neighbor].value == 1 for neighbor in new_node_neighborhood)/length_neighbours
+        industry= sum(self.grid[neighbor].value == 2 for neighbor in new_node_neighborhood)/length_neighbours
+        stores = sum(self.grid[neighbor].value == 3 for neighbor in new_node_neighborhood)/length_neighbours
+        streets = sum(self.grid[neighbor].value == 4 or self.grid[neighbor].value == 5 for neighbor in new_node_neighborhood)/length_neighbours
         return housing, industry, stores, streets
 
+    # per activity check if the constrains are met
     def check_density_activity(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
         if (housing <= thresholds['housing'] and industry <= thresholds['industry'] and stores <= thresholds['stores'] \
-                and streets > thresholds['streets']):
+                and streets >= thresholds['streets']):
             return True
         return False
 
+    # check from all street nodes which street nodes are allowed to become street nodes
     def street_check(self, new_street_nodes):
         new_nodes = []
         for node in new_street_nodes:
@@ -234,6 +226,7 @@ class City(object):
                 new_nodes += [node]
         return new_nodes
 
+    # check all cells in between street nodes
     def vancant_cells(self, init_pos, second_pos):
         inter_cells = list(bresenham(init_pos[0], init_pos[1], second_pos[0], second_pos[1]))
         for cell in inter_cells[1:-1]:
@@ -241,11 +234,13 @@ class City(object):
                 return False
         return True
 
+    # check street nodes and make the street
     def initiate_streets(self):
         new_nodes = []
         for node in self.street_nodes:
-            new_street_nodes = self.get_grow_candidates(node)
-            new_nodes += [self.street_check(new_street_nodes)]
+            new_nodes += [self.street_check(self.get_grow_candidates(node))]
+            # new_street_nodes = self.get_grow_candidates(node)
+            # new_nodes += [self.street_check(new_street_nodes)]
         for i in range(len(self.street_nodes)):
             init_node = self.street_nodes[i]
             for second_node in new_nodes[i]:
@@ -260,9 +255,9 @@ class City(object):
         new_positions = []
         new_type = []
         for act in init_sites:
-            grow_candidates = self.get_grow_candidates(act)
-            # grow_candidates = [candidate for candidate in grow_candidates if self.activity_check(candidate[0])]
-            new_variable = self.determine_activity(grow_candidates)
+            # grow_candidates = self.get_grow_candidates(act)
+            # new_variable = self.determine_activity(grow_candidates)
+            new_variable = self.determine_activity(self.get_grow_candidates(act))
 
             for var in new_variable:
                 if var[0] not in new_positions:
@@ -294,6 +289,13 @@ class City(object):
         self.activities[1] += [sum([1 for act in self.all_activities if isinstance(act, Industry)])]
         self.activities[2] += [sum([1 for act in self.all_activities if isinstance(act, Stores)])]
         # self.history += [copy.copy(self.grid)]
+
+    # def find_perco(self,city):
+    #     show_grid = np.array([[0 for i in range(100)] for j in range(100)])
+    #     for i in range(100):
+    #         for j in range(100):
+    #             show_grid[i,j] = city[i,j].value
+    #     print(show_grid)
 
     def plot_growth(self):
         fig, axes = plt.subplots(4, figsize=(16,16))

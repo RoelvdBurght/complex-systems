@@ -29,25 +29,17 @@ def main(iteration):
 
     params_to_test = []
     locations = []
-    for a in np.linspace(0, 7 / 8, 8):
-        param = {'street_thresholds': {'activity': a}}
-        params_to_test.append(param)
-        locations.append('results/street_params/activity_{}'.format(h))
 
     for i in np.linspace(0,7/8,8):
-        param = {'industry_thresholds': {'housing': i, ' industry':1, 'stores':0.4, 'streets':0.15}}
+
+        param = {'housing_threshold': {'housing': 1, 'industry': i, 'stores': 0.25, 'streets': 0.05}}
         params_to_test.append(param)
-        locations.append('results/industry_thresholds/housing_activity_{}'.format(i))
+        locations.append('results/houses_thresholds_0.2/industry_activity_{}'.format(i))
 
     for i in np.linspace(0,7/8,8):
-        param = {'industry_threshold' : {'housing':0.4, 'industry':1, 'stores':i, 'streets':0.15}}
+        param = {'housing_threshold': {'housing': 1, 'industry': 0.15, 'stores': i, 'streets': 0.05}}
         params_to_test.append(param)
-        locations.append('results/industry_thresholds/stores_activity_{}'.format(i))
-
-    for i in np.linspace(0,7/8,8):
-        param = {'industry_thresholds': {'housing': 0.4, ' industry':1, 'stores':0.4, 'streets':i}}
-        params_to_test.append(param)
-        locations.append('results/industry_thresholds/housing_activity_{}'.format(i))
+        locations.append('results/houses_thresholds_0.2/stores_activity_{}'.format(i))
 
     r = cc.Runner(params_to_test, iterations=1000)
     r.run_experiment()
