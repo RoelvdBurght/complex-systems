@@ -16,7 +16,7 @@ from numba import int32, float32, types, typed, jit    # import the types
 class City(object):
     def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
                                                                     street_thresholds={'activity':0.2}, \
-                                                                    industry_threshold={'housing':0.2, 'industry':1, 'stores':0.2, 'streets':0.15},
+                                                                    industry_threshold={'housing':0.2, 'industry':1, 'stores':0.4, 'streets':0.15},
                                                                     store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0.05},
                                                                     housing_threshold={'housing':1, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
 
@@ -185,12 +185,6 @@ class City(object):
                     real_list += [candidate]
         return real_list
 
-    # def street_density_check(self, new_node_neighborhood, thresholds):
-    #     housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
-    #     if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
-    #         return True
-    #     return False
-
     # check if the street can be build
     def street_density_check(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
@@ -289,12 +283,26 @@ class City(object):
         self.activities[2] += [sum([1 for act in self.all_activities if isinstance(act, Stores)])]
         # self.history += [copy.copy(self.grid)]
 
-    # def find_perco(self,city):
-    #     show_grid = np.array([[0 for i in range(100)] for j in range(100)])
-    #     for i in range(100):
-    #         for j in range(100):
-    #             show_grid[i,j] = city[i,j].value
-    #     print(show_grid)
+    def find_perco(self, grid):
+        print('start')
+        list_neighbours = []
+        for i in range(100):
+            if grid[(0, i)] == 4 or grid[(0, i)] == 5:
+                pos = (0, i)
+                break
+        for neighbour in grid[pos].neighborhood:
+            list_neighbours.append(neighbour)
+        for position in list_neighbours:
+            print(position)
+            for neighbour in grid[position].neighborhood:
+                if grid[neighbour].value == 4 or grid[neighbour].value == 5:
+                    if neighbour[1] == 99:
+                        return True
+                    if neighbour not in list_neighbours:
+                        list_neighbours.append(neighbour)
+
+        return False
+
 
     def plot_growth(self):
         fig, axes = plt.subplots(4, figsize=(16,16))

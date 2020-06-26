@@ -8,9 +8,6 @@ import time
 import pickle
 import os
 
-import sys
-
-
 class SafeSpace(object):
     def __init__(self, parameters, city):
         self.parameters = parameters
@@ -20,26 +17,29 @@ class SafeSpace(object):
         self.stores_over_time = city.activities[2]
 
 def main(iteration):
-
-    print('hoi')
+    """
+    Loop per parameter through the different thresholds, keeping the other parameters at their standard value.
+    Add this to a list, which is stored with the grid to be used for later
+    """
     plot = False
-    # for iteration in range(10):
-
     start = time.time()
-
     params_to_test = []
     locations = []
 
-    for i in np.linspace(0,7/8,8):
-
-        param = {'housing_threshold': {'housing': 1, 'industry': i, 'stores': 0.25, 'streets': 0.05}}
+    for a in np.linspace(0, 7 / 8, 8):
+        param = {'street_thresholds': {'activity': a}}
         params_to_test.append(param)
-        locations.append('results/houses_thresholds_0.2/industry_activity_{}'.format(i))
+        locations.append('results/street_params/activity_{}'.format(a))
 
-    for i in np.linspace(0,7/8,8):
-        param = {'housing_threshold': {'housing': 1, 'industry': 0.15, 'stores': i, 'streets': 0.05}}
+    for i in np.linspace(0, 7 / 8, 8):
+        param = {'industry_threshold': {'housing': i, 'industry': 1, 'stores': 0.4, 'streets': 0.15}}
         params_to_test.append(param)
-        locations.append('results/houses_thresholds_0.2/stores_activity_{}'.format(i))
+        locations.append('results/industry_threshold/housing_activity_{}'.format(i))
+
+    for i in np.linspace(0, 7 / 8, 8):
+        param = {'industry_threshold': {'housing': 0.4, 'industry': 1, 'stores': i, 'streets': 0.15}}
+        params_to_test.append(param)
+        locations.append('results/industry_threshold/stores_activity_{}'.format(i))
 
     r = cc.Runner(params_to_test, iterations=1000)
     r.run_experiment()
@@ -63,7 +63,6 @@ def main(iteration):
         for i in range(len(r.cities)):
             fig = r.plot_grid(i)
             plt.show()
-
 
 if __name__ == '__main__':
     main()

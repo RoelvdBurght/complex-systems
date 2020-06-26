@@ -10,6 +10,6 @@ import os
 
 if __name__ == '__main__':
 
-    for iteration in range(10):
+    for iteration in range(6, 10):
         run_experiment.main(iteration)
         gc.collect()
