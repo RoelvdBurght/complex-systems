@@ -54,6 +54,10 @@ class City(object):
 
 
     def initialise_grid(self):
+        """
+        Create an empty grid with empty cells, and determine the neighbors and field neighbours of the cell
+        :return: grid
+        """
         grid = np.empty((self.n, self.n), dtype=object)
         for i in range(self.n):
             for j in range(self.n):
@@ -64,12 +68,17 @@ class City(object):
         return grid
 
     def init_streets(self, n_init):
+        """
+        Make given number of initial street nodes at random locations, and make two streets connected to one node
+        :param n_init: number of initial streets
+        """
         i=0
         while i < n_init:
             init_pos = (np.random.randint(0,self.n), np.random.randint(0,self.n))
             try:
                 empty_cell = self.grid[init_pos]
-                self.grid[init_pos] = StreetNode(init_pos, empty_cell, self.get_neighbors((init_pos[0],init_pos[1]), self.street_field_radius), self)
+                self.grid[init_pos] = StreetNode(init_pos, empty_cell, self.get_neighbors((init_pos[0],init_pos[1]),
+                                                                                        self.street_field_radius), self)
                 self.street_nodes += [self.grid[init_pos]]
                 del empty_cell
                 second_pos = (init_pos[0]+np.random.randint(-5,6), init_pos[1])
@@ -82,6 +91,11 @@ class City(object):
             i+=1
 
     def lay_street(self, init_pos, second_pos):
+        """
+        Take the two positions and lay a street in between them. Update list of street nodes with node
+        :param init_pos: first position
+        :param second_pos: second position
+        """
         empty_cell = self.grid[second_pos]
         self.grid[second_pos] = StreetNode(second_pos, empty_cell, self.get_neighbors((second_pos[0],second_pos[1]), self.street_field_radius), self)
         self.street_nodes += [self.grid[second_pos]]
@@ -91,11 +105,13 @@ class City(object):
         del empty_cell
 
     def init_activity(self, n_house_inits):
+        """
+        For every street node add a house if the random chosen cell is empty
+        :param n_house_inits: number of initial houses to be build
+        """
         for streetNode in self.street_nodes:
-            # print('street_node', streetNode.pos)
             i = 0
             while i < n_house_inits:
-                # try:
                 pos = (streetNode.pos[0]+np.random.randint(-2,3),streetNode.pos[1]+np.random.randint(-2,3))
                 try:
                     if self.grid[pos].value != 0:
@@ -106,21 +122,31 @@ class City(object):
                 self.add_activity(tuple(pos), clas)
                 i += 1
 
-    # adds a activity at specified position
     def add_activity(self, pos, clas):
+        """
+        Add activity to the new given cell, add it to the all_activities list
+        :param pos: given position of the to be determined cell
+        :param clas: given class of the cell which spawned the new cell
+        """
         empty_cell = self.grid[pos]
         self.grid[pos] = clas(pos, empty_cell, self, self.init_decay, self.mature_decay)
         del empty_cell
         self.all_activities += [self.grid[pos]]
 
-    # deletes activity at specified position
     def delete_activity(self, act):
+        """
+        Remove the given object from the grid and from the all_activities list
+        :param act: given object to be deleted
+        """
         self.grid[act.pos] = Empty(act.pos, act.neighborhood, act.field_neighbors, self.n)
         self.all_activities.remove(act)
         del act
 
-    # return a list of all acitivity objects on the city grid
     def get_all_activities(self):
+        """
+        Loop through grid, check if an activity is located on a specific location, if so add to list
+        :return: list with all activities of the grid
+        """
         activities = []
         for pos in combinations_with_replacement(range(self.n), 2):
             if self.grid[pos]:
@@ -129,6 +155,10 @@ class City(object):
 
     # determines the type of an activity by recalculating the type probabilities
     def update_types(self):
+        """
+
+        :return:
+        """
         for act in self.all_activities:
             act.calc_probs()
             probsum = cumsum(np.array([act.pi, act.pm, act.pd]))
@@ -140,19 +170,31 @@ class City(object):
             else:
                 act.type = 'decline'
 
-    # deletes all activities that are declining
     def delete_declining(self):
+        """
+        Loop through all activities, and if the state == decline delete the activity
+        """
         [self.delete_activity(act) for act in self.all_activities if act.type == 'decline']
 
-    # get the candidate positions in the field of an initiate state
     def get_grow_candidates(self, act):
+        """
+        Get object which can spawn a new activity, check if there are empty neighbours, and determine with a random
+        chance if the candidate can grow
+        :param act: object which can spawn a new activity
+        :return: list with candidates which might spawn
+        """
         grow_candidates = [[candidate, act] for candidate in act.field_neighbors if isinstance(self.grid[candidate], Empty)]
         grow_probs = [calc_grow_prob(np.array(candidate_pos[0]), np.array(act.pos), self.dist_decay) for candidate_pos in grow_candidates]
         return [grow_candidates[i] for i in range(len(grow_candidates)) if np.random.rand() < grow_probs[i]]
 
 
-    # check which activity the now empty cell will get
     def determine_activity(self, grow_candidates):
+        """
+        Loop through list with candidates, check what the initial node for activity had, check the neighbours of the
+        candidate and determine what the new activity is going to be
+        :param grow_candidates: list with candidates
+        :return: list with the candidates and their new activity
+        """
         real_list = []
         for candidate in grow_candidates:
             z = np.random.rand()
@@ -185,16 +227,24 @@ class City(object):
                     real_list += [candidate]
         return real_list
 
-    # check if the street can be build
     def street_density_check(self, new_node_neighborhood, thresholds):
+        """
+        Check if the constraints for the building of a street are met
+        :param new_node_neighborhood: neighbourhood of the potential new street
+        :param thresholds: Parameters taken into account
+        :return: True or False
+        """
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
         if sum([housing, industry, stores]) >= thresholds['activity'] and streets == 0:
-            # if (housing > thresholds['housing'] or industry > thresholds['industry'] or stores > thresholds['stores']) and (streets == 0):
             return True
         return False
 
-    # from neighbours check all activity
     def neighbourhood_density(self, new_node_neighborhood):
+        """
+        Loop through neighbours and count per activity how many there are, then divide it through amount of neighbours
+        :param new_node_neighborhood: neighbourhood of the potential new activity
+        :return: ratio of housing, industry, stores and streets
+        """
         length_neighbours = len(new_node_neighborhood)
         housing = sum(self.grid[neighbor].value == 1 for neighbor in new_node_neighborhood)/length_neighbours
         industry= sum(self.grid[neighbor].value == 2 for neighbor in new_node_neighborhood)/length_neighbours
@@ -202,16 +252,25 @@ class City(object):
         streets = sum(self.grid[neighbor].value == 4 or self.grid[neighbor].value == 5 for neighbor in new_node_neighborhood)/length_neighbours
         return housing, industry, stores, streets
 
-    # per activity check if the constrains are met
     def check_density_activity(self, new_node_neighborhood, thresholds):
+        """
+        Check if the constraints for adding a new activity are met
+        :param new_node_neighborhood: neighbourhood of the potential new activity
+        :param thresholds: Parameters taken into account
+        :return: True or False
+        """
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
         if (housing <= thresholds['housing'] and industry <= thresholds['industry'] and stores <= thresholds['stores'] \
                 and streets >= thresholds['streets']):
             return True
         return False
 
-    # check from all street nodes which street nodes are allowed to become street nodes
     def street_check(self, new_street_nodes):
+        """
+        Loop through list to see which new street nodes can be build
+        :param new_street_nodes: list with all new street nodes
+        :return: added nodes
+        """
         new_nodes = []
         for node in new_street_nodes:
             new_node_neighborhood = self.grid[node[0]].neighborhood
@@ -219,21 +278,26 @@ class City(object):
                 new_nodes += [node]
         return new_nodes
 
-    # check all cells in between street nodes
     def vancant_cells(self, init_pos, second_pos):
+        """
+        See if the cells between two given points are empty
+        :param init_pos: first position
+        :param second_pos: second position
+        :return: True or False
+        """
         inter_cells = list(bresenham(init_pos[0], init_pos[1], second_pos[0], second_pos[1]))
         for cell in inter_cells[1:-1]:
             if self.grid[cell].value != 0:
                 return False
         return True
 
-    # check street nodes and make the street
     def initiate_streets(self):
+        """
+        Do all checks and make a street
+        """
         new_nodes = []
         for node in self.street_nodes:
             new_nodes += [self.street_check(self.get_grow_candidates(node))]
-            # new_street_nodes = self.get_grow_candidates(node)
-            # new_nodes += [self.street_check(new_street_nodes)]
         for i in range(len(self.street_nodes)):
             init_node = self.street_nodes[i]
             for second_node in new_nodes[i]:
@@ -241,25 +305,28 @@ class City(object):
                     self.lay_street(init_node.pos, second_node[0])
                     break
 
-
-    # initiate possible new cells
     def initiate_activity(self):
+        """
+        Go through all activities that are in the init state, then check if they can spawn a new cell
+        """
         init_sites = [act for act in self.all_activities if act.type == 'init']
         new_positions = []
         new_type = []
         for act in init_sites:
-            # grow_candidates = self.get_grow_candidates(act)
-            # new_variable = self.determine_activity(grow_candidates)
             new_variable = self.determine_activity(self.get_grow_candidates(act))
-
             for var in new_variable:
                 if var[0] not in new_positions:
                     new_positions.append(var[0])
                     new_type.append(var[1])
         [self.add_activity(new_positions[i], new_type[i]) for i in range(len(new_positions))]
 
-    # get the neigbors cell given neigborhood
     def get_neighbors(self, pos, radius):
+        """
+        Take all neighbours in the given range from the given position on the grid
+        :param pos: given position to check
+        :param radius: given radius to use
+        :return: list of neighbours
+        """
         neighbors = []
         row, col = pos
         for i in range(col-radius, col+radius+1):
@@ -271,8 +338,10 @@ class City(object):
                 neighbors += [(j,i)]
         return neighbors
 
-    # time step
     def step(self):
+        """
+        Take time step, make new streets and activities, update all the lists
+        """
         self.t += 1
         self.update_types()
         self.initiate_streets()
@@ -283,28 +352,10 @@ class City(object):
         self.activities[2] += [sum([1 for act in self.all_activities if isinstance(act, Stores)])]
         # self.history += [copy.copy(self.grid)]
 
-    def find_perco(self, grid):
-        print('start')
-        list_neighbours = []
-        for i in range(100):
-            if grid[(0, i)] == 4 or grid[(0, i)] == 5:
-                pos = (0, i)
-                break
-        for neighbour in grid[pos].neighborhood:
-            list_neighbours.append(neighbour)
-        for position in list_neighbours:
-            print(position)
-            for neighbour in grid[position].neighborhood:
-                if grid[neighbour].value == 4 or grid[neighbour].value == 5:
-                    if neighbour[1] == 99:
-                        return True
-                    if neighbour not in list_neighbours:
-                        list_neighbours.append(neighbour)
-
-        return False
-
-
     def plot_growth(self):
+        """
+        Plot graph with activities
+        """
         fig, axes = plt.subplots(4, figsize=(16,16))
         labels = ['Housing', 'Industry', 'Stores', 'Streets']
         for i, act in enumerate(self.activities):
