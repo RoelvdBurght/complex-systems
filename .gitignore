@@ -4,3 +4,4 @@ simulate_city.ipynb
 screenshot_to_video.py
 *.avi
 subtract_data.py
+percolation/
