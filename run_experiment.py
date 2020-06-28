@@ -3,13 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 import gc
-import city_class_test as cc
+import city_model as cc
 import time
 import pickle
 import os
-
-import sys
-
 
 class SafeSpace(object):
     def __init__(self, parameters, city):
@@ -20,25 +17,28 @@ class SafeSpace(object):
         self.stores_over_time = city.activities[2]
 
 def main(iteration):
+    """
+    Loop per parameter through the different thresholds, keeping the other parameters at their standard value.
+    Add this to a list, which is stored with the grid to be used for later
+    """
     start = time.time()
-
     params_to_test = []
     locations = []
 
-    for i in np.linspace(0,7/8,8):
-        param = {'store_threshold': {'housing': i, 'industry':0.2, 'stores':1, 'streets':0.05}}
+    for a in np.linspace(0, 7 / 8, 8):
+        param = {'street_thresholds': {'activity': a}}
         params_to_test.append(param)
-        locations.append('results/stores_thresholds2/housing_activity_{}'.format(i))
+        locations.append('results/street_params/activity_{}'.format(a))
 
-    for i in np.linspace(0,7/8,8):
-        param = {'store_threshold' : {'housing':0.4, 'industry':i, 'stores':1, 'streets':0.05}}
+    for i in np.linspace(0, 7 / 8, 8):
+        param = {'industry_threshold': {'housing': i, 'industry': 1, 'stores': 0.4, 'streets': 0.15}}
         params_to_test.append(param)
-        locations.append('results/stores_thresholds2/industry_activity_{}'.format(i))
+        locations.append('results/industry_threshold/housing_activity_{}'.format(i))
 
-    # for i in np.linspace(0,7/8,8):
-    #     param = {'store_threshold': {'housing': 0.4, 'industry':0.2, 'stores':1, 'streets':i}}
-    #     params_to_test.append(param)
-    #     locations.append('results/stores_thresholds2/street_activity_{}'.format(i))
+    for i in np.linspace(0, 7 / 8, 8):
+        param = {'industry_threshold': {'housing': 0.4, 'industry': 1, 'stores': i, 'streets': 0.15}}
+        params_to_test.append(param)
+        locations.append('results/industry_threshold/stores_activity_{}'.format(i))
 
     r = cc.Runner(params_to_test, iterations=1000)
     r.run_experiment()

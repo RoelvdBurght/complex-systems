@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import combinations_with_replacement
 import PySimpleGUI as sg
-import city_class_test as city_class
-from city_class_test import Empty, Activity
+import city_model as city_class
+from city_model import Empty, Activity
 
 
 class GuiCell(object):
@@ -98,6 +98,5 @@ class GUI(object):
 
 
 if __name__ == "__main__":
-
     c = city_class.City(n=100)
     gui = GUI(c)
