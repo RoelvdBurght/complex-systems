@@ -37,7 +37,7 @@ Our model makes use of multiple parameters. Considering there are several restri
 
 
 ## Simulation
-![Here is a random simulation of our model](plots/simulation_example.avi)
+![Here is a random simulation of our model](plots/simulation_example.gif)
 
 We see that it contains streets (grey), houses (green), industry (yellow) and stores (blue).
 
