@@ -24,13 +24,23 @@ def main(iteration):
 
     params_to_test = []
     locations = []
-    for h in np.linspace(0, 7 / 8, 8):
-        param = {'street_thresholds': {'activity': h}}
+
+    for i in np.linspace(0,7/8,8):
+        param = {'store_threshold': {'housing': i, 'industry':0.2, 'stores':1, 'streets':0.05}}
         params_to_test.append(param)
+        locations.append('results/stores_thresholds2/housing_activity_{}'.format(i))
 
-        locations.append('results/street_params/activity_{}'.format(h))
+    for i in np.linspace(0,7/8,8):
+        param = {'store_threshold' : {'housing':0.4, 'industry':i, 'stores':1, 'streets':0.05}}
+        params_to_test.append(param)
+        locations.append('results/stores_thresholds2/industry_activity_{}'.format(i))
 
-    r = cc.Runner(params_to_test, iterations=10)
+    # for i in np.linspace(0,7/8,8):
+    #     param = {'store_threshold': {'housing': 0.4, 'industry':0.2, 'stores':1, 'streets':i}}
+    #     params_to_test.append(param)
+    #     locations.append('results/stores_thresholds2/street_activity_{}'.format(i))
+
+    r = cc.Runner(params_to_test, iterations=1000)
     r.run_experiment()
 
     # save results

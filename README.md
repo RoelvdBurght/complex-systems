@@ -27,7 +27,7 @@ We see that it contains streets (grey), houses (green), industry (yellow) and st
 
 ## Running the code
 Our simulation is run by running our jupyter notebook called *simulate_city.ipynb*.
-For changing the parameters, go to *city_class_test.py* and change them in the corresponding thresholds.
+For changing the parameters, go to *city_class.py* and change them in the corresponding thresholds.
 
 ### Contributors
 Bart van Laatum
