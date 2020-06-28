@@ -1,0 +1,8 @@
+numpy==1.16.6
+bresenham==0.2.1
+matplotlib==3.2.2
+numba==0.50.1
+pyscreenshot==2.2
+PySimpleGUI==4.22.0
+regex==2020.6.8
+seaborn==0.10.1
