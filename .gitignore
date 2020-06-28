@@ -1,3 +1,5 @@
 __pycache__
 .ipynb_checkpoints
 simulate_city.ipynb
+screenshot_to_video.py
+*.avi

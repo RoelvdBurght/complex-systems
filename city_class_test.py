@@ -12,16 +12,20 @@ from itertools import combinations_with_replacement
 from numba import int32, float32, types, typed, jit    # import the types
 # from numba.experimental import jitclass
 
-
+# street_thresholds = {'activity': 1 / 8 + 0.00001}, \
+#                     industry_threshold = {'housing': 1 / 8, 'industry': 3 / 8, 'stores': 1 / 8, 'streets': 0.05},
+# store_threshold = {'housing': 4 / 8, 'industry': 0.2, 'stores': 1 / 8 + 0.01, 'streets': 0.05},
+# housing_threshold = {'housing': 1, 'industry': 0.15, 'stores': 0.25, 'streets': 0.05}):
 # creates a grid that of nxn with a single unspecified activity in the middle
 class City(object):
     def __init__(self, n=100, n_radius=1, field_radius=2, street_field_radius=3, n_init=4, n_house_inits=2, init_decay=1/30, mature_decay=1/20, dist_decay=0.9, \
-                                                                    street_thresholds={'activity':0.2}, \
-                                                                    industry_threshold={'housing':0.4, 'industry':1, 'stores':0.4, 'streets':0.15},
-                                                                    store_threshold={'housing':0.4, 'industry':0.2, 'stores':1, 'streets':0},
+                                                                    street_thresholds={'activity':1/8+0.00001}, \
+                                                                    industry_threshold={'housing':1/8, 'industry':3/8, 'stores':1/8, 'streets':0.05},
+                                                                    store_threshold={'housing':4/8, 'industry':0.2, 'stores':1/8+0.01, 'streets':0.05},
                                                                     housing_threshold={'housing':1, 'industry':0.15, 'stores':0.25, 'streets':0.05}):
 
-        self.inMatrix = np.array([[0.9, 0.05, 0.05], [0.025, 0.95, 0.025], [0.025, 0.025, 0.95]])
+        self.inMatrix = np.array([[0.8, 0.1, 0.1], [0.3, 0.65, 0.05], [0.025, 0.025, 0.95]])
+        # self.inMatrix = np.array([[0.33, 0.33, 0.33], [0.33, 0.33, 0.33], [0.33, 0.33, 0.33]])
         self.n = n
         self.t = 0
         self.n_radius = n_radius
@@ -222,7 +226,7 @@ class City(object):
     def check_density_activity(self, new_node_neighborhood, thresholds):
         housing, industry, stores, streets = self.neighbourhood_density(new_node_neighborhood)
         if (housing <= thresholds['housing'] and industry <= thresholds['industry'] and stores <= thresholds['stores'] \
-                and streets > thresholds['streets']):
+                and streets >= thresholds['streets']):
             return True
         return False
 
@@ -390,7 +394,7 @@ class Runner(object):
     def run_experiment(self):
         seeds = [np.random.randint(0, 1000000) for _ in range(len(self.args))]
         argument_list = [(arg, seed) for arg, seed in zip(self.args, seeds)]
-        pool = mp.Pool(os.cpu_count())
+        pool = mp.Pool(os.cpu_count() - 1)
         result_cities = pool.starmap(self.iterate_city, argument_list)
         pool.close()
         print(result_cities)
@@ -423,7 +427,6 @@ def fast_calc_probs(init_decay, mature_decay, t, init_t):
     pi = np.exp(-init_decay*(t-init_t))
     pm = (1-pi)*np.exp(-mature_decay*(t-init_t))
     return pi,pm, 1-pi-pm
-
 
 # get the probability an activity is starting at candidate position
 # function is outside the class to use faster jit function
