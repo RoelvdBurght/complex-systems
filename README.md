@@ -31,7 +31,8 @@ Our model makes use of multiple parameters. Considering there are a lot of restr
 
 
 ## Papers
-[1] https://www.ucl.ac.uk/bartlett/casa/sites/bartlett/files/ceus-paper.pdf
+[1] https://www.ucl.ac.uk/bartlett/casa/sites/bartlett/files/ceus-paper.pdf 
+
 [2] https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1538-4632.1996.tb00940.x
 
 
