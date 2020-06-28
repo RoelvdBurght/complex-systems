@@ -2,7 +2,7 @@
 Welcome to the repository of group 8
 
 ## Project
-The model we build is a simulation of a city based on a GIS-system called DUEM[1]. How the city grows depending on multiple parameters and rules.
+The model we build is a simulation of a city based on a GIS-system called DUEM[1]. How the city grows depends on multiple parameters and rules.
 
 ### GIS
 This acronym stands for geographic information system and is used for gathering and analyzing large amounts of geographical data.  It analyzes spatial location and organizes layers of information into visualizations by using maps or 3d models of landscapes.
@@ -27,7 +27,7 @@ Streets can only be build when there is a specific threshold of activity in the 
 This way, the development of the city follows the development of the streets and the other way around.
 
 ## Parameters
-Our model makes use of multiple parameters. Considering there are a lot of restrictions, the parameters need to be tuned in order to get a fully developed, heterogenous city.
+Our model makes use of multiple parameters. Considering there are several restrictions, the parameters need to be tuned in order to get a fully developed, heterogenous city.
 
 
 ## Papers
