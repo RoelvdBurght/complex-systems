@@ -1,6 +1,6 @@
 import numpy as np
 import PySimpleGUI as sg
-import city_class_test as city_class
+import city_model as city_class
 import pyscreenshot as ImageGrab
 
 
